@@ -1,0 +1,23 @@
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: platform-auth
+  namespace: flux-system
+spec:
+  sourceRef:
+    kind: GitRepository
+    name: flux-platform
+  path: ./infrastructure/auth
+  interval: 1h
+  prune: true
+  wait: true
+  timeout: 10m
+  dependsOn:
+    - name: platform-mesh
+  postBuild:
+    substituteFrom:
+      - kind: ConfigMap
+        name: platform-vars
+      - kind: Secret
+        name: platform-secrets
+        optional: true

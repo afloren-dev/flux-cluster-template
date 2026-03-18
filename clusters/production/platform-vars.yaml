@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: platform-vars
+  namespace: flux-system
+data:
+  DOMAIN: "CHANGEME.example.com"        # Your domain
+  ACME_EMAIL: "admin@CHANGEME.com"      # Let's Encrypt email
+  GCP_PROJECT: ""                        # GCP project (for DNS01 solver, leave empty if not using)
+  TRACING_SAMPLE_RATE: "100"            # Jaeger sampling rate (0-100)
+  PROMETHEUS_RETENTION: "24h"           # Prometheus data retention
+  LOKI_RETENTION: "12h"                 # Loki log retention
+  INGRESS_TYPE: "LoadBalancer"          # NodePort for dev/KinD, LoadBalancer for cloud
+  GRAFANA_ADMIN_PASSWORD: "changeme"    # Grafana admin password

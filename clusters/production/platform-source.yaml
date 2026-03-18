@@ -1,0 +1,10 @@
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: GitRepository
+metadata:
+  name: flux-platform
+  namespace: flux-system
+spec:
+  interval: 5m
+  url: https://github.com/afloren-dev/flux-platform
+  ref:
+    tag: v1.0.0  # Pin to a specific template version

@@ -1,0 +1,59 @@
+name: E2E Tests
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install yamllint
+        run: pip install yamllint
+
+      - name: Run yamllint
+        run: yamllint clusters/
+
+      - name: Install kubeconform
+        run: |
+          wget https://github.com/yannh/kubeconform/releases/latest/download/kubeconform-linux-amd64.tar.gz
+          tar xf kubeconform-linux-amd64.tar.gz
+          sudo mv kubeconform /usr/local/bin/
+
+      - name: Validate manifests
+        run: |
+          find clusters -name '*.yaml' -type f | xargs kubeconform -ignore-missing-schemas
+
+  e2e:
+    runs-on: ubuntu-latest
+    needs: validate
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Create KinD cluster
+        uses: helm/kind-action@v1
+
+      - name: Install Flux
+        run: |
+          curl -s https://fluxcd.io/install.sh | sudo bash
+          flux install
+
+      - name: Apply cluster configuration
+        run: |
+          kubectl apply -k clusters/production/
+
+      - name: Wait for reconciliation
+        run: |
+          kubectl wait --for=condition=ready kustomization/platform-core -n flux-system --timeout=5m
+          kubectl wait --for=condition=ready kustomization/platform-mesh -n flux-system --timeout=10m
+
+      - name: Check status
+        run: |
+          flux get all -A
+          kubectl get all -A
