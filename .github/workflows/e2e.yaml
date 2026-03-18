@@ -12,7 +12,7 @@ jobs:
   validate:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Install yamllint
         run: pip install yamllint
@@ -31,10 +31,10 @@ jobs:
           find clusters -name '*.yaml' -type f | xargs kubeconform -ignore-missing-schemas
 
   e2e:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-latest-m
     needs: validate
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Create KinD cluster
         uses: helm/kind-action@v1
