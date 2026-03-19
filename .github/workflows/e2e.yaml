@@ -12,7 +12,7 @@ jobs:
   validate:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Install yamllint
         run: pip install yamllint
@@ -31,10 +31,10 @@ jobs:
           find clusters -name '*.yaml' -type f | xargs kubeconform -ignore-missing-schemas
 
   e2e:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-latest-m
     needs: validate
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Create KinD cluster
         uses: helm/kind-action@v1
@@ -51,9 +51,85 @@ jobs:
       - name: Wait for reconciliation
         run: |
           kubectl wait --for=condition=ready kustomization/platform-core -n flux-system --timeout=5m
-          kubectl wait --for=condition=ready kustomization/platform-mesh -n flux-system --timeout=10m
+          kubectl wait --for=condition=ready kustomization/platform-mesh-controllers -n flux-system --timeout=10m
+          kubectl wait --for=condition=ready kustomization/platform-mesh-configs -n flux-system --timeout=10m
 
       - name: Check status
         run: |
           flux get all -A
           kubectl get all -A
+
+      - name: Debug failure
+        if: failure()
+        run: |
+          mkdir -p /tmp/flux-debug/flux
+
+          echo "==> Flux state:"
+          flux get kustomizations --all-namespaces 2>&1 | tee /tmp/flux-debug/flux/kustomizations.txt
+          flux get helmreleases --all-namespaces 2>&1 | tee /tmp/flux-debug/flux/helmreleases.txt
+          flux get sources all --all-namespaces 2>&1 | tee /tmp/flux-debug/flux/sources.txt
+          kubectl get pods --all-namespaces 2>&1 | tee /tmp/flux-debug/flux/pods.txt
+
+          echo "==> Kubernetes events (sorted by time):"
+          kubectl get events --all-namespaces --sort-by='.lastTimestamp' 2>&1 | tail -50 | tee /tmp/flux-debug/flux/events.txt
+
+          echo "==> Flux controller logs:"
+          kubectl logs -n flux-system deploy/kustomize-controller --tail=50 2>&1 | tee /tmp/flux-debug/flux/kustomize-controller.txt
+          kubectl logs -n flux-system deploy/helm-controller --tail=50 2>&1 | tee /tmp/flux-debug/flux/helm-controller.txt
+
+          echo "==> Collecting cluster-info dump (organized by namespace/pod)..."
+          kubectl cluster-info dump --all-namespaces \
+            --output-directory=/tmp/flux-debug/cluster-dump 2>/dev/null || true
+
+          echo "==> Exporting KinD node logs (organized by node)..."
+          kind export logs /tmp/flux-debug/kind-logs --name=chart-testing 2>/dev/null || true
+
+      - name: Write job summary
+        if: failure()
+        run: |
+          {
+            echo "## E2E Failure Debug Summary"
+            echo ""
+            echo "### Flux Kustomizations"
+            echo '```'
+            cat /tmp/flux-debug/flux/kustomizations.txt 2>/dev/null || echo "(not captured)"
+            echo '```'
+            echo ""
+            echo "### Flux HelmReleases"
+            echo '```'
+            cat /tmp/flux-debug/flux/helmreleases.txt 2>/dev/null || echo "(not captured)"
+            echo '```'
+            echo ""
+            echo "### Flux Sources"
+            echo '```'
+            cat /tmp/flux-debug/flux/sources.txt 2>/dev/null || echo "(not captured)"
+            echo '```'
+            echo ""
+            echo "### All Pods"
+            echo '```'
+            cat /tmp/flux-debug/flux/pods.txt 2>/dev/null || echo "(not captured)"
+            echo '```'
+            echo ""
+            echo "### Recent Events"
+            echo '```'
+            cat /tmp/flux-debug/flux/events.txt 2>/dev/null || echo "(not captured)"
+            echo '```'
+            echo ""
+            echo "### Flux Controller Logs (kustomize-controller)"
+            echo '```'
+            cat /tmp/flux-debug/flux/kustomize-controller.txt 2>/dev/null || echo "(not captured)"
+            echo '```'
+            echo ""
+            echo "### Flux Controller Logs (helm-controller)"
+            echo '```'
+            cat /tmp/flux-debug/flux/helm-controller.txt 2>/dev/null || echo "(not captured)"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload debug artifacts
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: flux-debug-${{ github.run_id }}
+          path: /tmp/flux-debug/
+          retention-days: 7

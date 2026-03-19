@@ -1,19 +1,19 @@
 apiVersion: kustomize.toolkit.fluxcd.io/v1
 kind: Kustomization
 metadata:
-  name: platform-mesh
+  name: platform-mesh-configs
   namespace: flux-system
 spec:
   sourceRef:
     kind: GitRepository
     name: flux-platform
-  path: ./infrastructure/mesh
+  path: ./infrastructure/mesh/configs
   interval: 1h
   prune: true
   wait: true
   timeout: 10m
   dependsOn:
-    - name: platform-core
+    - name: platform-mesh-controllers
   postBuild:
     substituteFrom:
       - kind: ConfigMap
