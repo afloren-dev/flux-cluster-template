@@ -5,7 +5,8 @@ resources:
   - platform-source.yaml
   - platform-vars.yaml
   - modules/core.yaml
-  - modules/mesh.yaml
+  - modules/mesh-controllers.yaml
+  - modules/mesh-configs.yaml
   - modules/certs.yaml
   - modules/auth.yaml
   - modules/monitoring.yaml

@@ -7,4 +7,4 @@ spec:
   interval: 5m
   url: https://github.com/afloren-dev/flux-platform
   ref:
-    tag: v1.0.0  # Pin to a specific template version
+    tag: v1.1.0  # Pin to a specific template version

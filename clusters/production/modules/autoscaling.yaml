@@ -13,7 +13,7 @@ spec:
   wait: true
   timeout: 10m
   dependsOn:
-    - name: platform-mesh
+    - name: platform-mesh-configs
   postBuild:
     substituteFrom:
       - kind: ConfigMap
